@@ -1,34 +1,42 @@
 VERSION = 1.0.0
 CC = gcc
-CFLAGS = -Wall -Wextra -Wpedantic -Ofast -g -std=c2x
+CFLAGS = -Wall -Wextra -Wpedantic -std=c2x -g
 RM = rm
-LINT = cppcheck
-LINTFLAGS = --check-level=exhaustive --enable=all --inconclusive --suppress=missingIncludeSystem --verbose
 
 BIN = smpg
 
-.PHONY: all clean lint dist self
+.PHONY: all clean dist self
+
+BDIR = bin
+ODIR = obj
+SDIR = src
+DDIR = doc
+
+SRCS = $(wildcard $(SDIR)/*.c)
+OBJS = $(patsubst $(SDIR)/%.c, $(ODIR)/%.o, $(SRCS))
 
 # Building -------------------------------------
 
 all: $(BIN)
 
-$(BIN): $(BIN).o
-	$(CC) $(CFLAGS) $(BIN).o -o $@
+$(BIN): $(BDIR) $(ODIR) $(OBJS)
+	$(CC) $(CFLAGS) $(OBJS) -o $(BDIR)/$@
 
-%.o: %.c
+$(ODIR)/%.o: $(SDIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+$(BDIR):
+	 mkdir $@
+$(ODIR):
+	 mkdir $@
 
 # Distribution ---------------------------------
-
-DDIR = doc
 
 dist: clean
 dist: all
 dist: $(DDIR)/$(BIN).7
 	gzip -vk $<
-	tar -czvf $(BIN)-$(VERSION).tar.gz $(BIN) $(DDIR)/* ../README.md ../LICENSE --transform 's,^,$(BIN)-$(VERSION)/,'
+	tar -czvf $(BIN)-$(VERSION).tar.gz $(BDIR)/$(BIN) $(DDIR)/* ../README.md ../LICENSE --transform 's,^,$(BIN)-$(VERSION)/,'
 	md5sum $(BIN)-$(VERSION).tar.gz
 
 self: clean
@@ -36,14 +44,12 @@ self: all
 self: $(DDIR)/$(BIN).7
 	gzip -vk $<
 	sudo mkdir /usr/local/man/man7/ -p
-	sudo mv $(BIN) /usr/local/bin
+	sudo mv $(BDIR)/$(BIN) /usr/local/bin
 	sudo mv $(DDIR)/$(BIN).7.gz /usr/local/man/man7/
 	sudo mandb -q
 
 # Other ----------------------------------------
 
-lint: $(BIN).c
-	$(LINT) $(LINTFLAGS) $<
 clean:
-	$(RM) -f $(BIN) *.o
+	$(RM) -f $(BDIR)/* $(ODIR)/*
 
